@@ -75,3 +75,20 @@ func (u *User) GetAuthToken() (string, error) {
 	fmt.Println("Error", err)
 	return authToken, err
 }
+
+// IsAuthenticated checks to make sure password is correct and user is active
+func (u *User) IsAuthenticated(conn *pgx.Conn) error {
+	row := conn.QueryRow(context.Background(), "SELECT id, password_hash from user_account WHERE email = $1", u.Email)
+	err := row.Scan(&u.ID, &u.PasswordHash)
+	if err == pgx.ErrNoRows {
+		fmt.Println("User with email not found")
+		return fmt.Errorf("Invalid login credentials")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(u.Password))
+	if err != nil {
+		return fmt.Errorf("Invalid login credentials")
+	}
+
+	return nil
+}
